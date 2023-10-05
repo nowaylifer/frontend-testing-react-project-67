@@ -1,4 +1,6 @@
-const pageLoader = require('./pageLoader');
+#!/usr/bin/env node
+
+const PageLoader = require('./page-loader');
 const { program } = require('commander');
 
 program.option('-o, --output <path>', 'output path');
@@ -8,4 +10,4 @@ const options = program.opts();
 const { output } = options;
 const { args } = program;
 
-pageLoader(args[0], output);
+new PageLoader(args[0], output).load();
