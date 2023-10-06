@@ -1,17 +1,18 @@
-const axios = require('axios');
-const path = require('path');
-const fs = require('fs/promises');
-const process = require('process');
-const cheerio = require('cheerio');
-const fsc = require('fs-cheerio');
-const { createWriteStream } = require('fs');
+import axios from 'axios';
+import path from 'path';
+import fs from 'fs/promises';
+import process from 'process';
+import * as cheerio from 'cheerio';
+import fsc from 'fs-cheerio';
+import { createWriteStream } from 'fs';
+
+let $;
 
 class PageLoader {
   #url;
   #destFolder;
   #resourceDist;
   #resourceFilePrefix;
-  $;
 
   constructor(urlString, destFolder = process.cwd()) {
     this.#url = new URL(urlString);
@@ -28,12 +29,12 @@ class PageLoader {
 
   async load() {
     const { filepath, html } = await this.#loadHtml();
-    this.$ = cheerio.load(html);
+    $ = cheerio.load(html);
 
     await this.#createResourceDir();
     await this.#loadImages();
 
-    await fsc.writeFile(filepath, this.$);
+    await fsc.writeFile(filepath, $);
 
     return { filepath };
   }
@@ -58,7 +59,7 @@ class PageLoader {
   }
 
   async #loadImages() {
-    const $images = this.$('img');
+    const $images = $('img');
     await Promise.allSettled($images.map((_, img) => this.#loadImage(img)));
   }
 
@@ -73,7 +74,7 @@ class PageLoader {
     }
 
     const imgPath = this.#generateResourceFilePath(img.attribs.src);
-    this.$(img).attr('src', imgPath.replace(`${this.#destFolder}/`, ''));
+    $(img).attr('src', imgPath.replace(`${this.#destFolder}/`, ''));
 
     const writer = createWriteStream(imgPath);
     resp.data.pipe(writer);

@@ -1,48 +1,37 @@
-const os = require('os');
-const fs = require('fs/promises');
-const path = require('path');
-const nock = require('nock');
-const process = require('process');
-const cheerio = require('cheerio');
-const fsc = require('fs-cheerio');
-const { readFile, getFixturePath } = require('../test-helpers');
-const { loadPage } = require('../page-loader');
+import os from 'os';
+import fs from 'fs/promises';
+import path from 'path';
+import nock from 'nock';
+import process from 'process';
+import * as cheerio from 'cheerio';
+import { readFile, getFixturePath, trimHtml } from '../test-helpers';
+import { loadPage } from '../page-loader';
 
 let tmpFolder;
-let responseHtml;
-let imageBuf;
 
 beforeAll(async () => {
   nock.disableNetConnect();
-  imageBuf = await fs.readFile(getFixturePath('nodejs.png'));
-  responseHtml = await readFile('response.html');
 });
 
 beforeEach(async () => {
   tmpFolder = await fs.mkdtemp(path.join(os.tmpdir(), 'page-loader-'));
+});
 
-  nock(/ru\.hexlet\.io/)
-    .get(/\/courses/)
-    .reply(200, responseHtml);
-
-  nock(/ru\.hexlet\.io/)
-    .get(/\/assets\/professions\/nodejs.png/)
-    .reply(200, imageBuf, {
-      'Content-Type': 'image/png',
-      'Content-Length': (_, __, body) => body.length,
-    });
+afterEach(async () => {
+  await fs.rm(tmpFolder, { recursive: true, force: true });
 });
 
 describe('downloads html', () => {
-  let fscWriteMock;
+  let html;
 
-  beforeAll(() => {
-    fscWriteMock = jest.spyOn(fsc, 'writeFile');
-    fscWriteMock.mockImplementation(() => Promise.resolve());
+  beforeAll(async () => {
+    html = await readFile('just.html').then(trimHtml);
   });
 
-  afterAll(() => {
-    fscWriteMock.mockRestore();
+  beforeEach(() => {
+    nock(/ru\.hexlet\.io/)
+      .get(/\/courses/)
+      .reply(200, html);
   });
 
   test('to the specified folder', async () => {
@@ -52,7 +41,7 @@ describe('downloads html', () => {
 
     const actualContent = await fs.readFile(expectedFilePath, 'utf-8');
 
-    expect(actualContent).toBe(responseHtml);
+    expect(trimHtml(actualContent)).toBe(html);
     expect(returnValue.filepath).toBe(expectedFilePath);
   });
 
@@ -65,12 +54,33 @@ describe('downloads html', () => {
 
     const actualContent = await fs.readFile(expectedFilePath, 'utf-8');
 
-    expect(actualContent).toBe(responseHtml);
+    expect(trimHtml(actualContent)).toBe(trimHtml(html));
     expect(returnValue.filepath).toBe(expectedFilePath);
   });
 });
 
 describe('downloads images', () => {
+  let htmlWithImg;
+  let imageBuf;
+
+  beforeAll(async () => {
+    imageBuf = await fs.readFile(getFixturePath('nodejs.png'));
+    htmlWithImg = await readFile('img.html');
+  });
+
+  beforeEach(() => {
+    nock(/ru\.hexlet\.io/)
+      .get(/\/courses/)
+      .reply(200, htmlWithImg);
+
+    nock(/ru\.hexlet\.io/)
+      .get(/\/assets\/professions\/nodejs.png/)
+      .reply(200, imageBuf, {
+        'Content-Type': 'image/png',
+        'Content-Length': (_, __, body) => body.length,
+      });
+  });
+
   test('sucessful', async () => {
     const imagePath = path.join(
       tmpFolder,
