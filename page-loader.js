@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs/promises');
 const process = require('process');
 const cheerio = require('cheerio');
+const { createWriteStream } = require('fs');
 
 class PageLoader {
   #url;
@@ -17,7 +18,7 @@ class PageLoader {
 
     this.#resourceDist = path.join(
       this.#destFolder,
-      `${this.#generateFileName(this.#url.toString())}_files`,
+      `${this.#generateFileName(this.#url.href)}_files`,
     );
 
     const { hostname } = this.#url;
@@ -27,13 +28,23 @@ class PageLoader {
   async load() {
     const { filepath, html } = await this.#loadHtml();
     this.$ = cheerio.load(html);
+
+    await this.#createResourceDir();
     await this.#loadImages();
 
     return { filepath };
   }
 
+  async #createResourceDir() {
+    try {
+      await fs.mkdir(this.#resourceDist);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
   async #loadHtml() {
-    const htmlFilename = this.#generateFileName(this.#url.toString()) + '.html';
+    const htmlFilename = this.#generateFileName(this.#url.href) + '.html';
     const filepath = path.join(this.#destFolder, htmlFilename);
 
     const { data: html } = await axios.get(this.#url.toString());
@@ -46,39 +57,47 @@ class PageLoader {
   async #loadImages() {
     const $images = this.$('img');
 
-    await Promise.allSettled(
-      $images.map(async (i, img) => {
-        const { origin } = this.#url;
+    const promises = $images.map(async (_, img) => {
+      let resp;
 
-        let resp;
+      const imgUrl = new URL(img.attribs.src, this.#url.href);
 
-        try {
-          resp = await axios.get(`${origin}${img.attribs.src}`, { responseType: 'stream' });
-        } catch (error) {
-          console.log('Error downloading image:\n' + error);
-          return;
-        }
+      try {
+        resp = await axios.get(imgUrl.href, { responseType: 'stream' });
+      } catch (error) {
+        return Promise.reject(error);
+      }
 
-        const imgPath = this.#generateResourceFilePath(img.attribs.src);
+      const imgPath = this.#generateResourceFilePath(img.attribs.src);
 
-        resp.data.pipe(fs.createWriteStream(imgPath));
+      let writer;
 
-        return new Promise((resolve, reject) => {
-          resp.data.on('end', resolve);
-          resp.data.on('error', reject);
+      writer = createWriteStream(imgPath);
+      resp.data.pipe(writer);
+
+      return new Promise((resolve, reject) => {
+        writer.on('finish', () => {
+          console.log('finish writing image');
+          resolve();
         });
-      }),
-    );
-  }
+        writer.on('error', (err) => {
+          console.log('Error in write stream:', err);
+          reject();
+        });
+      });
+    });
 
-  #getResourceFilePath(filename) {
-    return path.join(this.#resourceDist, filename);
+    await Promise.allSettled(promises);
   }
 
   #generateResourceFilePath(rawName) {
     return this.#getResourceFilePath(
       this.#resourceFilePrefix + this.#generateFileName(rawName, { saveExt: true }),
     );
+  }
+
+  #getResourceFilePath(filename) {
+    return path.join(this.#resourceDist, filename);
   }
 
   #generateFileName(string, { saveExt = false } = {}) {

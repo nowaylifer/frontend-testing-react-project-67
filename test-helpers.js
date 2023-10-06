@@ -6,4 +6,5 @@ const readFile = (filename) => fs.readFile(getFixturePath(filename), 'utf-8');
 
 module.exports = {
   readFile,
+  getFixturePath,
 };

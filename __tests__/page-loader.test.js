@@ -3,21 +3,21 @@ const fs = require('fs/promises');
 const path = require('path');
 const nock = require('nock');
 const process = require('process');
-const { readFile } = require('../test-helpers');
+const { readFile, getFixturePath } = require('../test-helpers');
 const { loadPage } = require('../page-loader');
 
 let tmpFolder;
 let responseHtml;
-let image;
+let imageBuf;
 
 beforeAll(async () => {
   nock.disableNetConnect();
+  imageBuf = await fs.readFile(getFixturePath('nodejs.png'));
   responseHtml = await readFile('response.html');
 });
 
 beforeEach(async () => {
   tmpFolder = await fs.mkdtemp(path.join(os.tmpdir(), 'page-loader-'));
-  image = await readFile('nodejs.png');
 
   nock(/ru\.hexlet\.io/)
     .get(/\/courses/)
@@ -25,7 +25,10 @@ beforeEach(async () => {
 
   nock(/ru\.hexlet\.io/)
     .get(/\/assets\/professions\/nodejs.png/)
-    .reply(200, image);
+    .reply(200, imageBuf, {
+      'Content-Type': 'image/png',
+      'Content-Length': (_, __, body) => body.length,
+    });
 });
 
 describe('downloads html', () => {
@@ -63,7 +66,9 @@ test('downloads images', async () => {
 
   await loadPage('https://ru.hexlet.io/courses', tmpFolder);
 
-  const downloadedImage = await fs.readFile(imagePath, 'utf-8');
+  const actualImgBuf = await fs.readFile(imagePath);
 
-  expect(downloadedImage).toBe(image);
+  const isEqual = imageBuf.equals(actualImgBuf);
+
+  expect(isEqual).toBe(true);
 });
