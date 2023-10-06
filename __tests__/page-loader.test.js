@@ -3,6 +3,8 @@ const fs = require('fs/promises');
 const path = require('path');
 const nock = require('nock');
 const process = require('process');
+const cheerio = require('cheerio');
+const fsc = require('fs-cheerio');
 const { readFile, getFixturePath } = require('../test-helpers');
 const { loadPage } = require('../page-loader');
 
@@ -32,6 +34,17 @@ beforeEach(async () => {
 });
 
 describe('downloads html', () => {
+  let fscWriteMock;
+
+  beforeAll(() => {
+    fscWriteMock = jest.spyOn(fsc, 'writeFile');
+    fscWriteMock.mockImplementation(() => Promise.resolve());
+  });
+
+  afterAll(() => {
+    fscWriteMock.mockRestore();
+  });
+
   test('to the specified folder', async () => {
     const returnValue = await loadPage('https://ru.hexlet.io/courses', tmpFolder);
 
@@ -57,18 +70,31 @@ describe('downloads html', () => {
   });
 });
 
-test('downloads images', async () => {
-  const imagePath = path.join(
-    tmpFolder,
-    'ru-hexlet-io-courses_files',
-    'ru-hexlet-io-assets-professions-nodejs.png',
-  );
+describe('downloads images', () => {
+  test('sucessful', async () => {
+    const imagePath = path.join(
+      tmpFolder,
+      'ru-hexlet-io-courses_files',
+      'ru-hexlet-io-assets-professions-nodejs.png',
+    );
 
-  await loadPage('https://ru.hexlet.io/courses', tmpFolder);
+    await loadPage('https://ru.hexlet.io/courses', tmpFolder);
 
-  const actualImgBuf = await fs.readFile(imagePath);
+    const actualImgBuf = await fs.readFile(imagePath);
 
-  const isEqual = imageBuf.equals(actualImgBuf);
+    const isEqual = imageBuf.equals(actualImgBuf);
 
-  expect(isEqual).toBe(true);
+    expect(isEqual).toBe(true);
+  });
+
+  test('src attribute in <img> tags reference path of the downloaded images', async () => {
+    await loadPage('https://ru.hexlet.io/courses', tmpFolder);
+
+    const html = await fs.readFile(path.join(tmpFolder, 'ru-hexlet-io-courses.html'), 'utf-8');
+    const $ = cheerio.load(html);
+
+    const { src } = $('img')[0].attribs;
+
+    expect(src).toBe('ru-hexlet-io-courses_files/ru-hexlet-io-assets-professions-nodejs.png');
+  });
 });

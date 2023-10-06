@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs/promises');
 const process = require('process');
 const cheerio = require('cheerio');
+const fsc = require('fs-cheerio');
 const { createWriteStream } = require('fs');
 
 class PageLoader {
@@ -32,6 +33,8 @@ class PageLoader {
     await this.#createResourceDir();
     await this.#loadImages();
 
+    await fsc.writeFile(filepath, this.$);
+
     return { filepath };
   }
 
@@ -56,38 +59,29 @@ class PageLoader {
 
   async #loadImages() {
     const $images = this.$('img');
+    await Promise.allSettled($images.map((_, img) => this.#loadImage(img)));
+  }
 
-    const promises = $images.map(async (_, img) => {
-      let resp;
+  async #loadImage(img) {
+    const imgUrl = new URL(img.attribs.src, this.#url.href);
+    let resp;
 
-      const imgUrl = new URL(img.attribs.src, this.#url.href);
+    try {
+      resp = await axios.get(imgUrl.href, { responseType: 'stream' });
+    } catch (error) {
+      return Promise.reject(error);
+    }
 
-      try {
-        resp = await axios.get(imgUrl.href, { responseType: 'stream' });
-      } catch (error) {
-        return Promise.reject(error);
-      }
+    const imgPath = this.#generateResourceFilePath(img.attribs.src);
+    this.$(img).attr('src', imgPath.replace(`${this.#destFolder}/`, ''));
 
-      const imgPath = this.#generateResourceFilePath(img.attribs.src);
+    const writer = createWriteStream(imgPath);
+    resp.data.pipe(writer);
 
-      let writer;
-
-      writer = createWriteStream(imgPath);
-      resp.data.pipe(writer);
-
-      return new Promise((resolve, reject) => {
-        writer.on('finish', () => {
-          console.log('finish writing image');
-          resolve();
-        });
-        writer.on('error', (err) => {
-          console.log('Error in write stream:', err);
-          reject();
-        });
-      });
+    return new Promise((resolve, reject) => {
+      writer.on('finish', resolve);
+      writer.on('error', reject);
     });
-
-    await Promise.allSettled(promises);
   }
 
   #generateResourceFilePath(rawName) {
