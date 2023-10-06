@@ -12,19 +12,11 @@ class PageLoader {
   #url;
   #destFolder;
   #resourceDist;
-  #resourceFilePrefix;
 
   constructor(urlString, destFolder = process.cwd()) {
     this.#url = new URL(urlString);
     this.#destFolder = destFolder;
-
-    this.#resourceDist = path.join(
-      this.#destFolder,
-      `${this.#generateFileName(this.#url.href)}_files`,
-    );
-
-    const { hostname } = this.#url;
-    this.#resourceFilePrefix = this.#generateFileName(hostname);
+    this.#resourceDist = `${this.#generateFileName(this.#url.href)}_files`;
   }
 
   async load() {
@@ -41,7 +33,7 @@ class PageLoader {
 
   async #createResourceDir() {
     try {
-      await fs.mkdir(this.#resourceDist);
+      await fs.mkdir(path.join(this.#destFolder, this.#resourceDist));
     } catch (error) {
       console.log(error);
     }
@@ -60,23 +52,37 @@ class PageLoader {
 
   async #loadImages() {
     const $images = $('img');
-    await Promise.allSettled($images.map((_, img) => this.#loadImage(img)));
+    await Promise.allSettled($images.map((_, img) => this.#loadResource(img)));
   }
 
-  async #loadImage(img) {
-    const imgUrl = new URL(img.attribs.src, this.#url.href);
+  #getUrlAttr(element) {
+    return element.name === 'link' ? 'href' : 'src';
+  }
+
+  #isResourceLocal(resourceUrl) {
+    return resourceUrl.origin === this.#url.origin;
+  }
+
+  async #loadResource(element) {
+    const urlAttr = this.#getUrlAttr(element);
+    const resourceUrl = new URL(element.attribs[urlAttr], this.#url.href);
+
+    if (!this.#isResourceLocal(resourceUrl)) {
+      return;
+    }
+
     let resp;
 
     try {
-      resp = await axios.get(imgUrl.href, { responseType: 'stream' });
+      resp = await axios.get(resourceUrl.href, { responseType: 'stream' });
     } catch (error) {
       return Promise.reject(error);
     }
 
-    const imgPath = this.#generateResourceFilePath(img.attribs.src);
-    $(img).attr('src', imgPath.replace(`${this.#destFolder}/`, ''));
+    const resourcePath = this.#getResourceFilePath(resourceUrl.href);
+    $(element).attr(urlAttr, resourcePath);
 
-    const writer = createWriteStream(imgPath);
+    const writer = createWriteStream(path.join(this.#destFolder, resourcePath));
     resp.data.pipe(writer);
 
     return new Promise((resolve, reject) => {
@@ -85,14 +91,8 @@ class PageLoader {
     });
   }
 
-  #generateResourceFilePath(rawName) {
-    return this.#getResourceFilePath(
-      this.#resourceFilePrefix + this.#generateFileName(rawName, { saveExt: true }),
-    );
-  }
-
-  #getResourceFilePath(filename) {
-    return path.join(this.#resourceDist, filename);
+  #getResourceFilePath(rawName) {
+    return path.join(this.#resourceDist, this.#generateFileName(rawName, { saveExt: true }));
   }
 
   #generateFileName(string, { saveExt = false } = {}) {
