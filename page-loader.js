@@ -25,7 +25,6 @@ export class PageLoader {
 
     await this.#createResourceDir();
     await this.#loadResources();
-    // await this.#loadImages();
 
     await fsc.writeFile(filepath, $);
 
@@ -62,11 +61,6 @@ export class PageLoader {
 
     await Promise.allSettled(promises);
   }
-
-  // async #loadImages() {
-  //   const $images = $('img');
-  //   await Promise.allSettled($images.map((_, img) => this.#loadResource(img)));
-  // }
 
   #getUrlAttr(element) {
     return element.name === 'link' ? 'href' : 'src';

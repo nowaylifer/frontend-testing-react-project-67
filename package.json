@@ -5,7 +5,9 @@
   "description": "[![Actions Status](https://github.com/nowaylifer/frontend-testing-react-project-67/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/nowaylifer/frontend-testing-react-project-67/actions)",
   "main": "index.js",
   "scripts": {
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "test:log-nock": "DEBUG=nock.* jest --runInBand",
+    "test:log-axios": "DEBUG=axios jest --runInBand"
   },
   "bin": {
     "page-loader": "npx babel-node cli"
@@ -26,8 +28,10 @@
   },
   "dependencies": {
     "axios": "^1.5.1",
+    "axios-debug-log": "^1.0.0",
     "cheerio": "^1.0.0-rc.12",
     "commander": "^11.0.0",
+    "debug": "^4.3.4",
     "fs-cheerio": "^3.0.0"
   }
 }
