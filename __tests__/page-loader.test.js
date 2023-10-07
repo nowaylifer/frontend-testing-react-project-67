@@ -1,3 +1,5 @@
+import 'debug';
+import 'axios-debug-log';
 import os from 'os';
 import fs from 'fs/promises';
 import path from 'path';
