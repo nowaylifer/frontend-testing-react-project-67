@@ -8,7 +8,7 @@ import { createWriteStream } from 'fs';
 
 let $;
 
-class PageLoader {
+export class PageLoader {
   #url;
   #destFolder;
   #resourceDist;
@@ -24,7 +24,8 @@ class PageLoader {
     $ = cheerio.load(html);
 
     await this.#createResourceDir();
-    await this.#loadImages();
+    await this.#loadResources();
+    // await this.#loadImages();
 
     await fsc.writeFile(filepath, $);
 
@@ -50,10 +51,22 @@ class PageLoader {
     return { filepath, html };
   }
 
-  async #loadImages() {
+  async #loadResources() {
+    const $links = $('link');
     const $images = $('img');
-    await Promise.allSettled($images.map((_, img) => this.#loadResource(img)));
+    const $scripts = $('script');
+
+    const promises = [$links, $images, $scripts].flatMap(($elements) =>
+      $elements.toArray().map((el) => this.#loadResource(el)),
+    );
+
+    await Promise.allSettled(promises);
   }
+
+  // async #loadImages() {
+  //   const $images = $('img');
+  //   await Promise.allSettled($images.map((_, img) => this.#loadResource(img)));
+  // }
 
   #getUrlAttr(element) {
     return element.name === 'link' ? 'href' : 'src';
@@ -68,7 +81,7 @@ class PageLoader {
     const resourceUrl = new URL(element.attribs[urlAttr], this.#url.href);
 
     if (!this.#isResourceLocal(resourceUrl)) {
-      return;
+      return Promise.resolve();
     }
 
     let resp;
@@ -115,11 +128,6 @@ class PageLoader {
   }
 }
 
-const loadPage = (url, destFolder) => {
+export const loadPage = (url, destFolder) => {
   return new PageLoader(url, destFolder).load();
-};
-
-module.exports = {
-  PageLoader,
-  loadPage,
 };

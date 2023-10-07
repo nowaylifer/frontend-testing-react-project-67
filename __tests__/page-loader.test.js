@@ -28,7 +28,7 @@ describe('downloads html', () => {
     html = await readFile('just.html').then(trimHtml);
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     nock(/ru\.hexlet\.io/)
       .get(/\/courses/)
       .reply(200, html);
@@ -46,7 +46,8 @@ describe('downloads html', () => {
   });
 
   test('to the current working directory, if the destFolder parameter is not defined', async () => {
-    process.cwd = jest.fn(() => tmpFolder);
+    const cwdMock = jest.spyOn(process, 'cwd');
+    cwdMock.mockImplementation(() => tmpFolder);
 
     const returnValue = await loadPage('https://ru.hexlet.io/courses');
 
@@ -56,6 +57,8 @@ describe('downloads html', () => {
 
     expect(trimHtml(actualContent)).toBe(trimHtml(html));
     expect(returnValue.filepath).toBe(expectedFilePath);
+
+    cwdMock.mockRestore();
   });
 });
 
@@ -119,7 +122,7 @@ describe('downloads local resources', () => {
     const cssPath = path.join(
       tmpFolder,
       'ru-hexlet-io-courses_files',
-      'ru-hexlet-io-courses_files/ru-hexlet-io-assets-application.css',
+      'ru-hexlet-io-assets-application.css',
     );
 
     const actualCss = await fs.readFile(cssPath, 'utf-8');
@@ -131,7 +134,7 @@ describe('downloads local resources', () => {
     const scriptPath = path.join(
       tmpFolder,
       'ru-hexlet-io-courses_files',
-      'ru-hexlet-io-courses_files/ru-hexlet-io-packs-js-runtime.js',
+      'ru-hexlet-io-packs-js-runtime.js',
     );
 
     const actualScript = await fs.readFile(scriptPath, 'utf-8');

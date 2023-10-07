@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { loadPage } from './page-loader';
+import { loadPage } from './page-loader.js';
 import { program } from 'commander';
 
 program.option('-o, --output <path>', 'output path');
