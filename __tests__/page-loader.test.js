@@ -59,19 +59,23 @@ describe('downloads html', () => {
   });
 });
 
-describe('downloads images', () => {
-  let htmlWithImg;
+describe('downloads local resources', () => {
+  let htmlWithResources;
+  let css;
+  let script;
   let imageBuf;
 
   beforeAll(async () => {
     imageBuf = await fs.readFile(getFixturePath('nodejs.png'));
-    htmlWithImg = await readFile('img.html');
+    htmlWithResources = await readFile('resources.html');
+    css = await readFile('application.css');
+    script = await readFile('runtime.js');
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     nock(/ru\.hexlet\.io/)
       .get(/\/courses/)
-      .reply(200, htmlWithImg);
+      .reply(200, htmlWithResources);
 
     nock(/ru\.hexlet\.io/)
       .get(/\/assets\/professions\/nodejs.png/)
@@ -79,16 +83,30 @@ describe('downloads images', () => {
         'Content-Type': 'image/png',
         'Content-Length': (_, __, body) => body.length,
       });
+
+    nock(/ru\.hexlet\.io/)
+      .get(/\/assets\/application.css/)
+      .reply(200, css, {
+        'Content-Type': 'text/css',
+        'Content-Length': (_, __, body) => body.length,
+      });
+
+    nock(/ru\.hexlet\.io/)
+      .get(/\/packs\/js\/runtime.js/)
+      .reply(200, script, {
+        'Content-Type': 'text/javascript',
+        'Content-Length': (_, __, body) => body.length,
+      });
+
+    await loadPage('https://ru.hexlet.io/courses', tmpFolder);
   });
 
-  test('sucessful', async () => {
+  test('images', async () => {
     const imagePath = path.join(
       tmpFolder,
       'ru-hexlet-io-courses_files',
       'ru-hexlet-io-assets-professions-nodejs.png',
     );
-
-    await loadPage('https://ru.hexlet.io/courses', tmpFolder);
 
     const actualImgBuf = await fs.readFile(imagePath);
 
@@ -97,14 +115,51 @@ describe('downloads images', () => {
     expect(isEqual).toBe(true);
   });
 
-  test('src attribute in <img> tags reference path of the downloaded images', async () => {
-    await loadPage('https://ru.hexlet.io/courses', tmpFolder);
+  test('links', async () => {
+    const cssPath = path.join(
+      tmpFolder,
+      'ru-hexlet-io-courses_files',
+      'ru-hexlet-io-courses_files/ru-hexlet-io-assets-application.css',
+    );
 
+    const actualCss = await fs.readFile(cssPath, 'utf-8');
+
+    expect(css).toBe(actualCss);
+  });
+
+  test('scripts', async () => {
+    const scriptPath = path.join(
+      tmpFolder,
+      'ru-hexlet-io-courses_files',
+      'ru-hexlet-io-courses_files/ru-hexlet-io-packs-js-runtime.js',
+    );
+
+    const actualScript = await fs.readFile(scriptPath, 'utf-8');
+
+    expect(script).toBe(actualScript);
+  });
+
+  test('src/href attributes of local resources should reference paths to downloaded files', async () => {
     const html = await fs.readFile(path.join(tmpFolder, 'ru-hexlet-io-courses.html'), 'utf-8');
     const $ = cheerio.load(html);
 
-    const { src } = $('img')[0].attribs;
+    const imgSrc = $('img')[0].attribs.src;
+    const scriptSrc = $('script')[1].attribs.src;
+    const cssHref = $('link')[1].attribs.href;
 
-    expect(src).toBe('ru-hexlet-io-courses_files/ru-hexlet-io-assets-professions-nodejs.png');
+    expect(imgSrc).toBe('ru-hexlet-io-courses_files/ru-hexlet-io-assets-professions-nodejs.png');
+    expect(cssHref).toBe('ru-hexlet-io-courses_files/ru-hexlet-io-assets-application.css');
+    expect(scriptSrc).toBe('ru-hexlet-io-courses_files/ru-hexlet-io-packs-js-runtime.js');
+  });
+
+  test('src/href attributes of external resources should not be changed', async () => {
+    const html = await fs.readFile(path.join(tmpFolder, 'ru-hexlet-io-courses.html'), 'utf-8');
+    const $ = cheerio.load(html);
+
+    const cssHref = $('link')[0].attribs.href;
+    const scriptSrc = $('script')[0].attribs.src;
+
+    expect(cssHref).toBe('https://cdn2.hexlet.io/assets/menu.css');
+    expect(scriptSrc).toBe('https://js.stripe.com/v3/');
   });
 });
