@@ -7,10 +7,11 @@
   "scripts": {
     "test": "jest --runInBand",
     "test:log-nock": "DEBUG=nock.* jest --runInBand",
-    "test:log-axios": "DEBUG=axios jest --runInBand"
+    "test:log-axios": "DEBUG=axios jest --runInBand",
+    "test:log": "DEBUG=page-loader jest --runInBand"
   },
   "bin": {
-    "page-loader": "npx babel-node cli"
+    "page-loader": "babel-node cli.js"
   },
   "keywords": [],
   "author": "",
@@ -32,6 +33,7 @@
     "cheerio": "^1.0.0-rc.12",
     "commander": "^11.0.0",
     "debug": "^4.3.4",
-    "fs-cheerio": "^3.0.0"
+    "fs-cheerio": "^3.0.0",
+    "mime-types": "^2.1.35"
   }
 }

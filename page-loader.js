@@ -1,53 +1,71 @@
+import setNamespace from 'debug';
 import axios from 'axios';
 import path from 'path';
 import fs from 'fs/promises';
 import process from 'process';
 import * as cheerio from 'cheerio';
 import fsc from 'fs-cheerio';
+import mime from 'mime-types';
 import { createWriteStream } from 'fs';
+
+const debug = setNamespace('page-loader');
 
 let $;
 
 export class PageLoader {
   #url;
-  #destFolder;
-  #resourceDist;
+  #outputDir;
+  #resourceDir;
 
-  constructor(urlString, destFolder = process.cwd()) {
+  constructor(urlString, outputDir = process.cwd()) {
     this.#url = new URL(urlString);
-    this.#destFolder = destFolder;
-    this.#resourceDist = `${this.#generateFileName(this.#url.href)}_files`;
+    this.#outputDir = this.#normalizeDirPath(outputDir);
+    this.#resourceDir = `${this.#generateFileName(this.#url.href)}_files`;
   }
 
   async load() {
-    const { filepath, html } = await this.#loadHtml();
-    $ = cheerio.load(html);
-
+    await this.#loadDom();
+    await this.#ensureDirExists(this.#outputDir);
     await this.#createResourceDir();
     await this.#loadResources();
 
-    await fsc.writeFile(filepath, $);
+    const filepath = await this.#saveHtml();
 
     return { filepath };
   }
 
-  async #createResourceDir() {
+  async #saveHtml() {
+    const htmlFilename = this.#generateFileName(this.#url.href) + '.html';
+    const filepath = path.join(this.#outputDir, htmlFilename);
+
+    await fsc.writeFile(filepath, $);
+
+    return filepath;
+  }
+
+  async #ensureDirExists(dirPath) {
     try {
-      await fs.mkdir(path.join(this.#destFolder, this.#resourceDist));
+      await fs.access(dirPath);
     } catch (error) {
-      console.log(error);
+      if (error.code === 'ENOENT') {
+        await fs.mkdir(dirPath, { recursive: true });
+      } else {
+        throw error;
+      }
     }
   }
 
-  async #loadHtml() {
-    const htmlFilename = this.#generateFileName(this.#url.href) + '.html';
-    const filepath = path.join(this.#destFolder, htmlFilename);
+  #normalizeDirPath(pathToFolder) {
+    return path.resolve(process.cwd(), pathToFolder);
+  }
 
-    const { data: html } = await axios.get(this.#url.toString());
+  async #createResourceDir() {
+    await fs.mkdir(path.join(this.#outputDir, this.#resourceDir), { recursive: true });
+  }
 
-    await fs.writeFile(filepath, html);
-
-    return { filepath, html };
+  async #loadDom() {
+    const { data } = await axios.get(this.#url.toString());
+    $ = cheerio.load(data);
   }
 
   async #loadResources() {
@@ -55,67 +73,98 @@ export class PageLoader {
     const $images = $('img');
     const $scripts = $('script');
 
-    const promises = [$links, $images, $scripts].flatMap(($elements) =>
-      $elements.toArray().map((el) => this.#loadResource(el)),
+    const results = await Promise.allSettled(
+      [$links, $images, $scripts].flatMap(($elements) =>
+        $elements.toArray().reduce((promises, el) => {
+          const resourceUrl = this.#getResourceUrl(el);
+
+          if (!this.#isResourceLocal(resourceUrl)) {
+            return promises;
+          }
+
+          return promises.concat(
+            this.#loadResource(resourceUrl.href).then((resp) => ({ el, resp })),
+          );
+        }, []),
+      ),
     );
 
-    await Promise.allSettled(promises);
+    await Promise.allSettled(
+      results
+        .reduce((acc, res) => (res.value ? acc.concat(res.value) : acc), [])
+        .map(({ el, resp }) => {
+          const { url } = resp.config;
+          const extname = path.extname(url) || `.${mime.extension(resp.headers['content-type'])}`;
+          const resourcePath = this.#getResourceFilePath(url, extname);
+          console.log(resourcePath);
+
+          this.#changeElementUrl(el, resourcePath);
+
+          return this.#saveResource(resp.data, path.join(this.#outputDir, resourcePath));
+        }),
+    );
   }
 
-  #getUrlAttr(element) {
-    return element.name === 'link' ? 'href' : 'src';
+  #getResourceUrl(element) {
+    const urlAttr = this.#getUrlAttr(element);
+    return new URL(element.attribs[urlAttr], this.#url.href);
   }
 
   #isResourceLocal(resourceUrl) {
     return resourceUrl.origin === this.#url.origin;
   }
 
-  async #loadResource(element) {
-    const urlAttr = this.#getUrlAttr(element);
-    const resourceUrl = new URL(element.attribs[urlAttr], this.#url.href);
-
-    if (!this.#isResourceLocal(resourceUrl)) {
-      return Promise.resolve();
-    }
-
-    let resp;
-
+  async #loadResource(url) {
     try {
-      resp = await axios.get(resourceUrl.href, { responseType: 'stream' });
+      const resp = await axios.get(url, { responseType: 'stream' });
+      return resp;
     } catch (error) {
-      return Promise.reject(error);
+      console.error(`Error downloading ${url}`, error);
+      throw error;
     }
+  }
 
-    const resourcePath = this.#getResourceFilePath(resourceUrl.href);
-    $(element).attr(urlAttr, resourcePath);
+  #changeElementUrl(element, newUrl) {
+    const urlAttr = this.#getUrlAttr(element);
+    $(element).attr(urlAttr, newUrl);
+  }
 
-    const writer = createWriteStream(path.join(this.#destFolder, resourcePath));
-    resp.data.pipe(writer);
+  async #saveResource(data, path) {
+    const writer = createWriteStream(path);
+    data.pipe(writer);
+
+    debug(`start writing to path: ${path}`);
 
     return new Promise((resolve, reject) => {
-      writer.on('finish', resolve);
-      writer.on('error', reject);
+      writer.on('finish', () => {
+        debug(`finish writing to path: ${path}`);
+        resolve();
+      });
+      writer.on('error', (error) => {
+        debug(`error writing to path: ${path}\n`, error);
+        reject(error);
+      });
     });
   }
 
-  #getResourceFilePath(rawName) {
-    return path.join(this.#resourceDist, this.#generateFileName(rawName, { saveExt: true }));
+  #getUrlAttr(element) {
+    return element.name === 'link' ? 'href' : 'src';
   }
 
-  #generateFileName(string, { saveExt = false } = {}) {
-    const dotIndex = string.lastIndexOf('.');
-    const ext = string.slice(dotIndex);
+  #getResourceFilePath(rawName, extname) {
+    return path.join(this.#resourceDir, this.#generateFileName(rawName, extname));
+  }
 
-    let filename = string.trim();
+  #generateFileName(string, extname = null) {
+    const regex = new RegExp(`${extname ? `(?!\\${extname})` : ''}[^a-z0-9]`, 'gi');
 
-    if (saveExt) {
-      filename = filename.slice(0, dotIndex);
-    }
+    let filename = string
+      .trim()
+      .replace(/^https?:\/\//, '')
+      .replace(regex, '-');
 
-    filename = filename.replace(/^https?:\/\//, '').replace(/[^a-z0-9]/gi, '-');
-
-    if (saveExt) {
-      filename = filename.concat(ext);
+    if (extname && !path.extname(filename)) {
+      filename = filename.concat(extname);
     }
 
     return filename;

@@ -33,7 +33,7 @@ describe('downloads html', () => {
   beforeEach(async () => {
     nock(/ru\.hexlet\.io/)
       .get(/\/courses/)
-      .reply(200, html);
+      .reply(200, html, { 'Content-Type': 'text/html' });
   });
 
   test('to the specified folder', async () => {
@@ -79,8 +79,9 @@ describe('downloads local resources', () => {
 
   beforeEach(async () => {
     nock(/ru\.hexlet\.io/)
+      .persist()
       .get(/\/courses/)
-      .reply(200, htmlWithResources);
+      .reply(200, htmlWithResources, { 'Content-type': 'text/html' });
 
     nock(/ru\.hexlet\.io/)
       .get(/\/assets\/professions\/nodejs.png/)
@@ -99,7 +100,7 @@ describe('downloads local resources', () => {
     nock(/ru\.hexlet\.io/)
       .get(/\/packs\/js\/runtime.js/)
       .reply(200, script, {
-        'Content-Type': 'text/javascript',
+        'Content-Type': 'application/javascript',
         'Content-Length': (_, __, body) => body.length,
       });
 
@@ -127,9 +128,17 @@ describe('downloads local resources', () => {
       'ru-hexlet-io-assets-application.css',
     );
 
+    const canonHtmlPath = path.join(
+      tmpFolder,
+      'ru-hexlet-io-courses_files',
+      'ru-hexlet-io-courses.html',
+    );
+
     const actualCss = await fs.readFile(cssPath, 'utf-8');
+    const actualCanonHtml = await fs.readFile(canonHtmlPath, 'utf-8');
 
     expect(css).toBe(actualCss);
+    expect(htmlWithResources).toBe(actualCanonHtml);
   });
 
   test('scripts', async () => {
