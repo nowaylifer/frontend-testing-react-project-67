@@ -1,5 +1,5 @@
-const path = require('path');
-const fs = require('fs/promises');
+import path from 'path';
+import fs from 'fs/promises';
 
 const getFixturePath = (filename) => path.join(__dirname, '__fixtures__', filename);
 const readFile = (filename) => fs.readFile(getFixturePath(filename), 'utf-8');

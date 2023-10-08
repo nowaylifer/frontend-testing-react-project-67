@@ -5,9 +5,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import nock from 'nock';
 import process from 'process';
-import * as cheerio from 'cheerio';
-import { readFile, getFixturePath, trimHtml } from '../test-helpers';
-import { loadPage } from '../page-loader';
+import cheerio from 'cheerio';
+import { readFile, getFixturePath, trimHtml } from '../test-helpers.js';
+import { loadPage } from '../page-loader.js';
 
 let tmpFolder;
 

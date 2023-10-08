@@ -3,7 +3,7 @@ import axios from 'axios';
 import path from 'path';
 import fs from 'fs/promises';
 import process from 'process';
-import * as cheerio from 'cheerio';
+import cheerio from 'cheerio';
 import fsc from 'fs-cheerio';
 import mime from 'mime-types';
 import { createWriteStream } from 'fs';
@@ -12,7 +12,7 @@ const debug = setNamespace('page-loader');
 
 let $;
 
-export class PageLoader {
+class PageLoader {
   #url;
   #outputDir;
   #resourceDir;
@@ -96,7 +96,6 @@ export class PageLoader {
           const { url } = resp.config;
           const extname = path.extname(url) || `.${mime.extension(resp.headers['content-type'])}`;
           const resourcePath = this.#getResourceFilePath(url, extname);
-          console.log(resourcePath);
 
           this.#changeElementUrl(el, resourcePath);
 
@@ -171,6 +170,11 @@ export class PageLoader {
   }
 }
 
-export const loadPage = (url, destFolder) => {
+const loadPage = (url, destFolder) => {
   return new PageLoader(url, destFolder).load();
+};
+
+module.exports = {
+  PageLoader,
+  loadPage,
 };
