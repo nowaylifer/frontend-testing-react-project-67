@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { loadPage } from './page-loader.js';
-import { program } from 'commander';
+const { loadPage } = require('./page-loader');
+const { program } = require('commander');
 
 program.option('-o, --output <path>', 'output path');
 program.parse(process.argv);

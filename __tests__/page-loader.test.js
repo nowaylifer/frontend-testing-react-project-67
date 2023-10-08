@@ -1,13 +1,13 @@
-import 'debug';
-import 'axios-debug-log';
-import os from 'os';
-import fs from 'fs/promises';
-import path from 'path';
-import nock from 'nock';
-import process from 'process';
-import * as cheerio from 'cheerio';
-import { readFile, getFixturePath, trimHtml } from '../test-helpers';
-import { loadPage } from '../page-loader';
+require('debug');
+require('axios-debug-log');
+const os = require('os');
+const fs = require('fs/promises');
+const path = require('path');
+const nock = require('nock');
+const process = require('process');
+const cheerio = require('cheerio');
+const { readFile, getFixturePath, trimHtml } = require('../test-helpers');
+const { loadPage } = require('../page-loader');
 
 let tmpFolder;
 

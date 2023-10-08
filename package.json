@@ -1,9 +1,8 @@
 {
   "name": "@hexlet/code",
-  "type": "module",
   "version": "1.0.0",
   "description": "[![Actions Status](https://github.com/nowaylifer/frontend-testing-react-project-67/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/nowaylifer/frontend-testing-react-project-67/actions)",
-  "main": "index.js",
+  "main": "page-loader.js",
   "scripts": {
     "test": "jest --runInBand",
     "test:log-nock": "DEBUG=nock.* jest --runInBand",
@@ -11,7 +10,7 @@
     "test:log": "DEBUG=page-loader jest --runInBand"
   },
   "bin": {
-    "page-loader": "babel-node cli.js"
+    "page-loader": "cli.js"
   },
   "keywords": [],
   "author": "",

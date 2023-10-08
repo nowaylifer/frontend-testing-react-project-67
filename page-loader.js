@@ -1,18 +1,18 @@
-import setNamespace from 'debug';
-import axios from 'axios';
-import path from 'path';
-import fs from 'fs/promises';
-import process from 'process';
-import * as cheerio from 'cheerio';
-import fsc from 'fs-cheerio';
-import mime from 'mime-types';
-import { createWriteStream } from 'fs';
+const setNamespace = require('debug');
+const axios = require('axios');
+const path = require('path');
+const fs = require('fs/promises');
+const process = require('process');
+const cheerio = require('cheerio');
+const fsc = require('fs-cheerio');
+const mime = require('mime-types');
+const { createWriteStream } = require('fs');
 
 const debug = setNamespace('page-loader');
 
 let $;
 
-export class PageLoader {
+class PageLoader {
   #url;
   #outputDir;
   #resourceDir;
@@ -171,6 +171,11 @@ export class PageLoader {
   }
 }
 
-export const loadPage = (url, destFolder) => {
+const loadPage = (url, destFolder) => {
   return new PageLoader(url, destFolder).load();
+};
+
+module.exports = {
+  PageLoader,
+  loadPage,
 };
