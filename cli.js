@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 
+import program from 'commander';
 import { loadPage } from './page-loader.js';
-import { program } from 'commander';
 
-program.option('-o, --output <path>', 'output path');
-program.parse(process.argv);
+program
+  .description('Loads page')
+  .arguments('<pageUrl>')
+  .option('-o, --output [path]', 'choose output path', process.cwd())
+  .action(async (pageUrl, options) => {
+    console.log(await loadPage(pageUrl, options.output));
+  })
+  .parse(process.argv);
 
-const options = program.opts();
-const { output } = options;
-const { args } = program;
-
-loadPage(args[0], output);
+if (!program.args.length) program.help();

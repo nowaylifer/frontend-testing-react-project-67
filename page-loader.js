@@ -4,7 +4,6 @@ import path from 'path';
 import fs from 'fs/promises';
 import process from 'process';
 import cheerio from 'cheerio';
-import fsc from 'fs-cheerio';
 import mime from 'mime-types';
 import { createWriteStream } from 'fs';
 
@@ -17,7 +16,7 @@ class PageLoader {
   #outputDir;
   #resourceDir;
 
-  constructor(urlString, outputDir = process.cwd()) {
+  constructor(urlString, outputDir) {
     this.#url = new URL(urlString);
     this.#outputDir = this.#normalizeDirPath(outputDir);
     this.#resourceDir = `${this.#generateFileName(this.#url.href)}_files`;
@@ -38,7 +37,7 @@ class PageLoader {
     const htmlFilename = this.#generateFileName(this.#url.href) + '.html';
     const filepath = path.join(this.#outputDir, htmlFilename);
 
-    await fsc.writeFile(filepath, $);
+    await fs.writeFile(filepath, $.html());
 
     return filepath;
   }
