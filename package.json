@@ -1,6 +1,5 @@
 {
   "name": "@hexlet/code",
-  "type": "module",
   "version": "1.0.0",
   "description": "[![Actions Status](https://github.com/nowaylifer/frontend-testing-react-project-67/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/nowaylifer/frontend-testing-react-project-67/actions)",
   "main": "page-loader.js",
@@ -33,7 +32,6 @@
     "cheerio": "^1.0.0-rc.12",
     "commander": "^11.0.0",
     "debug": "^4.3.4",
-    "fs-cheerio": "^3.0.0",
     "mime-types": "^2.1.35"
   }
 }

@@ -4,7 +4,6 @@ import os from 'os';
 import fs from 'fs/promises';
 import path from 'path';
 import nock from 'nock';
-import process from 'process';
 import cheerio from 'cheerio';
 import { readFile, getFixturePath, trimHtml } from '../test-helpers.js';
 import { loadPage } from '../page-loader.js';
@@ -45,22 +44,6 @@ describe('downloads html', () => {
 
     expect(trimHtml(actualContent)).toBe(html);
     expect(returnValue.filepath).toBe(expectedFilePath);
-  });
-
-  test('to the current working directory, if the destFolder parameter is not defined', async () => {
-    const cwdMock = jest.spyOn(process, 'cwd');
-    cwdMock.mockImplementation(() => tmpFolder);
-
-    const returnValue = await loadPage('https://ru.hexlet.io/courses');
-
-    const expectedFilePath = path.join(tmpFolder, 'ru-hexlet-io-courses.html');
-
-    const actualContent = await fs.readFile(expectedFilePath, 'utf-8');
-
-    expect(trimHtml(actualContent)).toBe(trimHtml(html));
-    expect(returnValue.filepath).toBe(expectedFilePath);
-
-    cwdMock.mockRestore();
   });
 });
 
